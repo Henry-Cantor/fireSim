@@ -12,7 +12,7 @@ from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.preprocessing import StandardScaler
 
 # ---------------- CONFIG ----------------
-DATASET_DIR = "data/processed/horizon_datasetsNEW"
+DATASET_DIR = "data/processed/horizon_datasets"
 HORIZON = 7
 PICKLE_PATH = os.path.join(DATASET_DIR, f"dataset_h{HORIZON}.pkl")
 BATCH_SIZE = 64
@@ -264,11 +264,11 @@ def run():
     #     train_losses.append(loss)
     #     torch.save(model.state_dict(), MODEL_SAVE_PATH)
 
-    model.load_state_dict(torch.load("plumeNet3_improved.pt", map_location=torch.device("cpu")))  # Set model to evaluation mode (important!)
+    model.load_state_dict(torch.load("plumeNet7_improved.pt", map_location=torch.device("cpu")))  # Set model to evaluation mode (important!)
 
     preds, trues, mae, r2, mape = evaluate_model(model, test_loader)
     print(f"[RESULT] MAE: {mae:.4f}, R²: {r2:.4f}, MAPE (>5 µg/m³): {mape:.2f}%")
-    torch.save(model.state_dict(), MODEL_SAVE_PATH)
+    # torch.save(model.state_dict(), MODEL_SAVE_PATH)
     plot_predictions(preds, trues, HORIZON)
 
 if __name__ == "__main__":
