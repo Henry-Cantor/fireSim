@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PM2.5 Lookup</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(135deg, #e8f5e9 0%, #cfd8dc 100%);
+      min-height: 100vh;
+      margin: 0;
+      font-family: 'Inter', 'Nunito', 'Roboto Mono', monospace;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+    .container {
+      background: #f5f5f5cc;
+      border-radius: 18px;
+      box-shadow: 0 8px 32px 0 rgba(60, 80, 60, 0.15);
+      padding: 2.5rem 2.5rem 2rem 2.5rem;
+      max-width: 350px;
+      width: 100%;
+      text-align: center;
+      margin: 0 auto;
+    }
+    h1, h2 {
+      font-family: 'Inter', 'Nunito', 'Roboto Mono', monospace;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    h1 {
+      color: #1976d2;
+      margin-bottom: 1.2rem;
+      font-size: 2.1rem;
+    }
+    h2 {
+      color: #1976d2;
+      font-size: 2.1rem;
+      margin-bottom: 2.5rem;
+      text-align: center;
+    }
+    label {
+      color: #607d8b;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+    input[type="text"] {
+      padding: 0.7rem 1.2rem;
+      border: 1.5px solid #b0bec5;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      width: 80%;
+      max-width: 260px;
+      background: #f8fafc;
+      color: #37474f;
+      transition: border 0.2s;
+      font-family: 'Inter', 'Nunito', 'Roboto Mono', monospace;
+      box-shadow: 0 1px 4px #b0bec522;
+    }
+    input[type="text"]:focus {
+      border: 1.5px solid #1976d2;
+      outline: none;
+      background: #e3f2fd;
+    }
+    button {
+      background: linear-gradient(90deg, #1976d2 0%, #90a4ae 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.7rem 2.2rem;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px 0 rgba(60, 80, 60, 0.10);
+      transition: background 0.2s;
+      font-family: 'Inter', 'Nunito', 'Roboto Mono', monospace;
+      margin-top: 1.0rem;
+      margin-bottom: 0.5rem;
+    }
+    button:hover {
+      background: linear-gradient(90deg, #1565c0 0%, #78909c 100%);
+    }
+    .toggle-switch {
+      display: flex;
+      background: #fff;
+      border: 2px solid #43a047;
+      border-radius: 25px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+      width: 200px;
+      margin: 0 auto 1.5rem auto;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .toggle-option {
+      flex: 1;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      border: none;
+      background: transparent;
+      border-radius: 23px;
+      margin: 2px;
+    }
+    .toggle-option.active {
+      background: #43a047;
+      color: #fff;
+    }
+    .toggle-option:not(.active) {
+      background: #fff;
+      color: #43a047;
+    }
+    .input-group {
+      display: none;
+      margin-bottom: 1rem;
+    }
+    .input-group.active {
+      display: block;
+    }
+    .city-inputs {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: center;
+    }
+    .city-inputs input {
+      width: 60%;
+      max-width: 150px;
+    }
+    .city-inputs select {
+      width: 35%;
+      max-width: 80px;
+      padding: 0.7rem 0.5rem;
+      border: 1.5px solid #b0bec5;
+      border-radius: 8px;
+      font-size: 1rem;
+      background: #f8fafc;
+      color: #37474f;
+      font-family: 'Inter', 'Nunito', 'Roboto Mono', monospace;
+    }
+    .result, .error {
+      margin-top: 1rem;
+      padding: 1.2rem;
+      border-radius: 12px;
+      font-size: 1.3rem;
+      font-weight: 700;
+      box-shadow: 0 2px 8px 0 rgba(60, 80, 60, 0.08);
+    }
+    .result {
+      background: #e0f2f1;
+      color: #2e7d32;
+    }
+    .error {
+      background: #ffebee;
+      color: #c62828;
+    }
+    .heatmap-module {
+      margin-top: 2.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #f5f5f5cc;
+      border-radius: 18px;
+      box-shadow: 0 8px 32px 0 rgba(60, 80, 60, 0.13);
+      padding: 2.5rem 2.5rem 2.5rem 2.5rem;
+      max-width: 600px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    #heatmap-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding-bottom: 1.5rem;
+    }
+    #heatmap-container svg {
+      width: 550px;
+      height: 520px;
+      min-width: 550px;
+      min-height: 520px;
+      display: block;
+      margin: 0 auto;
+      border: 2px solid black;
+    }
+    @media (max-width: 400px) {
+      .container, .heatmap-module { max-width: 99vw; padding: 1rem 0.2rem; }
+      #heatmap-container svg { width: 98vw !important; height: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>PM<sub>2.5</sub> Lookup</h1>
+    
+    <!-- Toggle Switch -->
+    <div class="toggle-switch">
+      <button type="button" class="toggle-option active" data-mode="zipcode">By Zip Code</button>
+      <button type="button" class="toggle-option" data-mode="city">By City</button>
+    </div>
+    
+    <!-- Zipcode Input -->
+    <form id="zipForm" class="input-group active">
+      <label for="zipcode">Enter US Zipcode</label>
+      <input type="text" id="zipcode" name="zipcode" maxlength="10" required pattern="[0-9]{5}">
+      <button type="submit">Check</button>
+    </form>
+    
+    <!-- City Input -->
+    <form id="cityForm" class="input-group">
+      <label for="cityInput">Enter City and State</label>
+      <div class="city-inputs">
+        <input type="text" id="cityInput" name="city" placeholder="City Name" required>
+        <select id="stateSelect" name="state" required>
+          <option value="">State</option>
+          <option value="AL">AL</option>
+          <option value="AK">AK</option>
+          <option value="AZ">AZ</option>
+          <option value="AR">AR</option>
+          <option value="CA">CA</option>
+          <option value="CO">CO</option>
+          <option value="CT">CT</option>
+          <option value="DE">DE</option>
+          <option value="FL">FL</option>
+          <option value="GA">GA</option>
+          <option value="HI">HI</option>
+          <option value="ID">ID</option>
+          <option value="IL">IL</option>
+          <option value="IN">IN</option>
+          <option value="IA">IA</option>
+          <option value="KS">KS</option>
+          <option value="KY">KY</option>
+          <option value="LA">LA</option>
+          <option value="ME">ME</option>
+          <option value="MD">MD</option>
+          <option value="MA">MA</option>
+          <option value="MI">MI</option>
+          <option value="MN">MN</option>
+          <option value="MS">MS</option>
+          <option value="MO">MO</option>
+          <option value="MT">MT</option>
+          <option value="NE">NE</option>
+          <option value="NV">NV</option>
+          <option value="NH">NH</option>
+          <option value="NJ">NJ</option>
+          <option value="NM">NM</option>
+          <option value="NY">NY</option>
+          <option value="NC">NC</option>
+          <option value="ND">ND</option>
+          <option value="OH">OH</option>
+          <option value="OK">OK</option>
+          <option value="OR">OR</option>
+          <option value="PA">PA</option>
+          <option value="RI">RI</option>
+          <option value="SC">SC</option>
+          <option value="SD">SD</option>
+          <option value="TN">TN</option>
+          <option value="TX">TX</option>
+          <option value="UT">UT</option>
+          <option value="VT">VT</option>
+          <option value="VA">VA</option>
+          <option value="WA">WA</option>
+          <option value="WV">WV</option>
+          <option value="WI">WI</option>
+          <option value="WY">WY</option>
+        </select>
+      </div>
+      <button type="submit">Check</button>
+    </form>
+    
+    <div id="output"></div>
+  </div>
+  <div class="heatmap-module">
+    <h2>Multi-Zone PM<sub>2.5</sub> & Wind Map</h2>
+    <div id="heatmap-container"></div>
+  </div>
+    <script>
+        const zipForm = document.getElementById('zipForm');
+        const cityForm = document.getElementById('cityForm');
+        const output = document.getElementById('output');
+        
+        // Toggle switch functionality
+        document.querySelectorAll('.toggle-option').forEach(button => {
+            button.addEventListener('click', () => {
+                // Update active button
+                document.querySelectorAll('.toggle-option').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Show/hide input groups
+                const mode = button.dataset.mode;
+                document.querySelectorAll('.input-group').forEach(group => group.classList.remove('active'));
+                if (mode === 'zipcode') {
+                    zipForm.classList.add('active');
+                } else {
+                    cityForm.classList.add('active');
+                }
+            });
+        });
+        // --- Heatmap logic ---
+        const csvData = `Radius (km),Angle (radians),Delta Latitude,Delta Longitude\n3,0.0,0.0,0.02694933524973051\n3,2.0943951023931953,0.023496266856162535,-0.013474667624865246\n3,4.1887902047863905,-0.02349626685616252,-0.013474667624865263\n6,0.7853981633974483,0.038369243105244324,0.03811211540710821\n6,2.356194490192345,0.038369243105244324,-0.0381121154071082\n6,3.9269908169872414,-0.03836924310524432,-0.03811211540710821\n6,5.497787143782138,-0.038369243105244324,0.038112115407108196\n12,0.0,0.0,0.10779734099892203\n12,1.2566370614359172,0.10321303557384054,0.03331121031709819\n12,2.5132741228718345,0.06378916406668546,-0.0872098808165592\n12,3.7699111843077517,-0.06378916406668543,-0.08720988081655923\n12,5.026548245743669,-0.10321303557384055,0.03331121031709817`;
+
+        function parseCSV(csv) {
+            const lines = csv.trim().split('\n');
+            const headers = lines[0].split(',');
+            return lines.slice(1).map(line => {
+                const vals = line.split(',');
+                return {
+                    radius: parseFloat(vals[0]),
+                    angle: parseFloat(vals[1]),
+                    dlat: parseFloat(vals[2]),
+                    dlon: parseFloat(vals[3])
+                };
+            });
+        }
+
+        function latlonOffset(lat, lon, dlat, dlon) {
+            // Simple add, since deltas are small
+            return {lat: lat + dlat, lon: lon + dlon};
+        }
+
+        async function fetchPM25ForPoints(centerLat, centerLon, points) {
+            // Center first
+            const allPoints = [{lat: centerLat, lon: centerLon, label: 'Center'}].concat(
+                points.map((pt, i) => {
+                    const offset = latlonOffset(centerLat, centerLon, pt.dlat, pt.dlon);
+                    return {...offset, label: `P${i+1}`};
+                })
+            );
+            // For each, call API
+            const results = await Promise.all(allPoints.map(async (pt) => {
+                try {
+                    const resp = await fetch(`http://localhost:5500/pm25?lat=${pt.lat}&lon=${pt.lon}`);
+                    const data = await resp.json();
+                    return { ...pt, pm25: data.pm2_5 || null };
+                } catch {
+                    return { ...pt, pm25: null };
+                }
+            }));
+            return results;
+        }
+
+        async function fetchWeatherForPoints(centerLat, centerLon, points) {
+            // Only non-center points
+            return await Promise.all(points.map(async (pt, i) => {
+                const offset = latlonOffset(centerLat, centerLon, pt.dlat, pt.dlon);
+                try {
+                    const resp = await fetch(`http://api.openweathermap.org/data/2.5/weather?lat=${offset.lat}&lon=${offset.lon}&appid=d8f119041413d028c00ae60ded02231a&units=metric`);
+                    const data = await resp.json();
+                    return {
+                        ...offset,
+                        label: `P${i+1}`,
+                        wind: data.wind || {},
+                        weather: data.weather ? data.weather[0] : {},
+                        temp: data.main ? data.main.temp : null,
+                        humidity: data.main ? data.main.humidity : null,
+                        city: data.name || '',
+                    };
+                } catch {
+                    return {
+                        ...offset,
+                        label: `P${i+1}`,
+                        wind: {},
+                        weather: {},
+                        temp: null,
+                        humidity: null,
+                        city: '',
+                    };
+                }
+            }));
+        }
+
+        function drawHeatmap(points, weatherPoints, locationName) {
+            const sizeW = 550, sizeH = 520, margin = 70;
+            // Find bounds
+            const lats = points.map(p => p.lat);
+            const lons = points.map(p => p.lon);
+            const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+            const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+            // Map to SVG coords
+            function toXY(lat, lon) {
+                const x = margin + ((lon - minLon) / (maxLon - minLon)) * (sizeW - 2*margin);
+                const y = margin + ((maxLat - lat) / (maxLat - minLat)) * (sizeH - 2*margin);
+                return {x, y};
+            }
+            // Find max wind speed for scaling
+            const maxWind = Math.max(...weatherPoints.map(w => w.wind && w.wind.speed ? w.wind.speed : 0), 1);
+            let svg = `<svg width="${sizeW}" height="${sizeH}" style='background:#f8f8f8;border-radius:12px;box-shadow:0 4px 24px #8882;display:block;margin:0 auto;'>`;
+            // Draw points
+            points.forEach((pt, i) => {
+                const {x, y} = toXY(pt.lat, pt.lon);
+                const color = pt.label === 'Center' ? '#1976d2' : '#9CAF88';
+                const borderColor = pt.label === 'Center' ? '#1565c0' : '#2E5A27';
+                svg += `<circle cx="${x}" cy="${y}" r="12" fill="${color}" opacity="0.92" data-idx="${i}" class="hmpt" style="stroke:${borderColor};stroke-width:2;cursor:pointer;" />`;
+                // Add small dark green dot at center for all points
+                const centerDotColor = pt.label === 'Center' ? '#1565c0' : '#2E5A27';
+                svg += `<circle cx="${x}" cy="${y}" r="3" fill="${centerDotColor}" opacity="0.9" />`;
+            });
+            // Draw wind arrows for non-center points
+            weatherPoints.forEach((w, i) => {
+                const {x, y} = toXY(w.lat, w.lon);
+                if (points[i+1]) { // skip center
+                    const speed = w.wind && w.wind.speed ? w.wind.speed : 0;
+                    const deg = w.wind && w.wind.deg ? w.wind.deg : 0;
+                                // Arrow length: 20-60px scaled based on wind speed
+            const len = 20 + 40 * (speed / maxWind);
+            const angleRad = (deg-90) * Math.PI/180; // SVG 0deg is east, wind deg is from north
+            const x2 = x + len * Math.cos(angleRad);
+            const y2 = y + len * Math.sin(angleRad);
+            svg += `<line x1="${x}" y1="${y}" x2="${x2}" y2="${y2}" stroke="#2E5A27" stroke-width="3" marker-end="url(#arrowhead)" opacity="0.85" />`;
+                }
+            });
+            // Arrowhead marker
+            svg = svg.replace('<svg ', `<svg <defs><marker id='arrowhead' markerWidth='6' markerHeight='4' refX='6' refY='2' orient='auto' markerUnits='strokeWidth'><polygon points='0 0, 6 2, 0 4' fill='#2E5A27'/></marker></defs> `);
+            svg += `</svg>`;
+            document.getElementById('heatmap-container').innerHTML = svg;
+            // Tooltip
+            const svgElem = document.querySelector('#heatmap-container svg');
+            let tooltip = document.getElementById('hm-tooltip');
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.id = 'hm-tooltip';
+                document.body.appendChild(tooltip);
+            }
+            tooltip.style.position = 'absolute';
+            tooltip.style.background = 'rgba(255,255,255,0.98)';
+            tooltip.style.border = '2px solid #1976d2';
+            tooltip.style.padding = '13px 18px';
+            tooltip.style.borderRadius = '12px';
+            tooltip.style.boxShadow = '0 4px 24px #8882';
+            tooltip.style.pointerEvents = 'none';
+            tooltip.style.display = 'none';
+            tooltip.style.fontSize = '1.08rem';
+            tooltip.style.zIndex = 100;
+            svgElem.querySelectorAll('.hmpt').forEach((el, i) => {
+                el.addEventListener('mouseenter', e => {
+                    const pt = points[i];
+                    let html = `<b style='font-size:1.2em;'>${pt.label === 'Center' ? locationName : (weatherPoints[i-1] && weatherPoints[i-1].city ? weatherPoints[i-1].city : pt.label)}</b><br>PM<sub>2.5</sub>: <b>${pt.pm25 !== null ? pt.pm25 + ' μg/m³' : 'N/A'}</b>`;
+                    if (i > 0) { // not center
+                        const w = weatherPoints[i-1];
+                        html += `<br><hr style='margin:7px 0;'>`;
+                        html += `<b>Wind:</b> ${w.wind && w.wind.speed ? w.wind.speed + ' m/s' : 'N/A'}<br>`;
+                        html += `<b>Direction:</b> ${w.wind && w.wind.deg ? w.wind.deg + '°' : 'N/A'}<br>`;
+                        html += `<b>Weather:</b> ${w.weather && w.weather.description ? w.weather.description : 'N/A'}<br>`;
+                        html += `<b>Temp:</b> ${w.temp !== null ? Math.round((w.temp * 9/5) + 32) + '°F' : 'N/A'}<br>`;
+                        html += `<b>Humidity:</b> ${w.humidity !== null ? w.humidity + '%' : 'N/A'}`;
+                    }
+                    tooltip.innerHTML = html;
+                    tooltip.style.display = 'block';
+                });
+                el.addEventListener('mousemove', e => {
+                    tooltip.style.left = (e.pageX + 18) + 'px';
+                    tooltip.style.top = (e.pageY - 10) + 'px';
+                });
+                el.addEventListener('mouseleave', e => {
+                    tooltip.style.display = 'none';
+                });
+            });
+        }
+
+        async function getLocationFromCity(city, state) {
+            const geoResp = await fetch(`http://api.openweathermap.org/geo/1.0/direct?q=${city},${state},US&appid=d8f119041413d028c00ae60ded02231a`);
+            if (!geoResp.ok) return null;
+            const geoData = await geoResp.json();
+            if (geoData.length > 0) {
+                return { lat: geoData[0].lat, lon: geoData[0].lon, name: geoData[0].name };
+            }
+            return null;
+        }
+
+        async function showHeatmapForLocation(lat, lon, locationName) {
+            const points = parseCSV(csvData);
+            // Fetch PM2.5 for all points (center + 12)
+            const pmPoints = await fetchPM25ForPoints(lat, lon, points);
+            // Fetch weather for 12 non-center points
+            const weatherPoints = await fetchWeatherForPoints(lat, lon, points);
+            drawHeatmap(pmPoints, weatherPoints, locationName);
+        }
+
+        async function showHeatmapForZip(zipcode) {
+            // Get center lat/lon
+            const geoResp = await fetch(`http://api.openweathermap.org/geo/1.0/zip?zip=${zipcode},US&appid=d8f119041413d028c00ae60ded02231a`);
+            if (!geoResp.ok) return;
+            const geoData = await geoResp.json();
+            const lat = geoData.lat, lon = geoData.lon;
+            await showHeatmapForLocation(lat, lon, zipcode);
+        }
+
+        zipForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            output.innerHTML = '';
+            const zipcode = document.getElementById('zipcode').value.trim();
+            if (!zipcode.match(/^\d{5}$/)) {
+                output.innerHTML = '<div class="error">Please enter a valid 5-digit US zipcode.</div>';
+                return;
+            }
+            output.innerHTML = '<div class="result">Loading...</div>';
+            try {
+                const resp = await fetch(`http://localhost:5500/pm25?zipcode=${zipcode}`);
+                const data = await resp.json();
+                if (resp.ok) {
+                    output.innerHTML = `<div class="result">PM<sub>2.5</sub> for <b>${zipcode}</b>: <span style='font-size:2rem;'>${data.pm2_5}</span> μg/m³</div>`;
+                    await showHeatmapForZip(zipcode);
+                } else {
+                    output.innerHTML = `<div class="error">${data.error || 'Error fetching data.'}</div>`;
+                    document.getElementById('heatmap-container').innerHTML = '';
+                }
+            } catch (err) {
+                output.innerHTML = '<div class="error">Network error. Please try again.</div>';
+                document.getElementById('heatmap-container').innerHTML = '';
+            }
+        });
+
+        cityForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            output.innerHTML = '';
+            const city = document.getElementById('cityInput').value.trim();
+            const state = document.getElementById('stateSelect').value;
+            
+            if (!city || !state) {
+                output.innerHTML = '<div class="error">Please enter both city name and select a state.</div>';
+                return;
+            }
+            
+            output.innerHTML = '<div class="result">Loading...</div>';
+            try {
+                // Get coordinates from city/state
+                const locationData = await getLocationFromCity(city, state);
+                if (!locationData) {
+                    output.innerHTML = '<div class="error">City not found. Please check the spelling and try again.</div>';
+                    return;
+                }
+                
+                // Get PM2.5 data using coordinates
+                const resp = await fetch(`http://localhost:5500/pm25?lat=${locationData.lat}&lon=${locationData.lon}`);
+                const data = await resp.json();
+                if (resp.ok) {
+                    const displayName = `${locationData.name}, ${state}`;
+                    output.innerHTML = `<div class="result">PM<sub>2.5</sub> for <b>${displayName}</b>: <span style='font-size:2rem;'>${data.pm2_5}</span> μg/m³</div>`;
+                    await showHeatmapForLocation(locationData.lat, locationData.lon, displayName);
+                } else {
+                    output.innerHTML = `<div class="error">${data.error || 'Error fetching data.'}</div>`;
+                    document.getElementById('heatmap-container').innerHTML = '';
+                }
+            } catch (err) {
+                output.innerHTML = '<div class="error">Network error. Please try again.</div>';
+                document.getElementById('heatmap-container').innerHTML = '';
+            }
+        });
+    </script>
+</body>
+</html> 
