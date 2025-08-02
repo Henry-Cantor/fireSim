@@ -4,7 +4,6 @@ import pandas as pd
 import math
 from typing import Tuple, List, Dict
 
-# Configuration
 API_KEY = "d8f119041413d028c00ae60ded02231a"
 GEO_URL = "http://api.openweathermap.org/geo/1.0/zip"
 AIR_URL = "http://api.openweathermap.org/data/2.5/air_pollution"
@@ -12,7 +11,6 @@ WEATHER_URL = "http://api.openweathermap.org/data/2.5/weather"
 ELEVATION_URL = "https://api.open-elevation.com/api/v1/lookup"
 
 def get_elevation(lat: float, lon: float) -> float:
-    """Get elevation for given coordinates using Open-Elevation API"""
     url = f"{ELEVATION_URL}?locations={lat},{lon}"
     response = requests.get(url)
     if response.status_code == 200:
@@ -23,7 +21,6 @@ def get_elevation(lat: float, lon: float) -> float:
         return 0.0
 
 def get_pm25(lat: float, lon: float) -> float:
-    """Get current PM2.5 for given coordinates using OpenWeatherMap API"""
     air_params = {'lat': lat, 'lon': lon, 'appid': API_KEY}
     air_resp = requests.get(AIR_URL, params=air_params)
     if air_resp.status_code == 200:
@@ -34,25 +31,22 @@ def get_pm25(lat: float, lon: float) -> float:
         return 0.0
 
 def get_wind_data(lat: float, lon: float) -> Tuple[float, float, float, float]:
-    """Get wind data and convert to U/V components"""
     weather_params = {'lat': lat, 'lon': lon, 'appid': API_KEY}
     weather_resp = requests.get(WEATHER_URL, params=weather_params)
     
     if weather_resp.status_code == 200:
         weather_data = weather_resp.json()
-        wind_speed = weather_data['wind']['speed']  # m/s
-        wind_direction = weather_data['wind']['deg']  # degrees
+        wind_speed = weather_data['wind']['speed']
+        wind_direction = weather_data['wind']['deg']  
         
         print(f"  Raw wind data: speed={wind_speed} m/s, direction={wind_direction}°")
         
-        # Convert to U/V components
         wind_dir_rad = math.radians(wind_direction)
         u = -wind_speed * math.sin(wind_dir_rad)
         v = -wind_speed * math.cos(wind_dir_rad)
         
         print(f"  Converted to U/V: u={u:.3f} m/s, v={v:.3f} m/s")
         
-        # Assume same values for 10m and 50m heights
         return u, v, u, v
     else:
         print(f"Error getting wind data: {weather_resp.status_code}")
@@ -62,7 +56,6 @@ def gaussian_plume_estimate(source_coords: Tuple[float, float],
                            point_coords: Tuple[float, float], 
                            u: float, v: float, 
                            Q=1000, H=10, sigma_y=50, sigma_z=20) -> float:
-    """Calculate Gaussian plume estimate"""
     dx = point_coords[0] - source_coords[0]
     dy = point_coords[1] - source_coords[1]
     
@@ -70,11 +63,11 @@ def gaussian_plume_estimate(source_coords: Tuple[float, float],
     wind_dir_x = u / wind_mag
     wind_dir_y = v / wind_mag
     
-    x = dx * wind_dir_x + dy * wind_dir_y  # downwind distance
-    y = -dx * wind_dir_y + dy * wind_dir_x  # crosswind
+    x = dx * wind_dir_x + dy * wind_dir_y 
+    y = -dx * wind_dir_y + dy * wind_dir_x 
     
     if x <= 0:
-        return 0.0  # upwind or no impact
+        return 0.0 
     
     exponent = -0.5 * (y / sigma_y) ** 2
     vertical = math.exp(-0.5 * (H / sigma_z) ** 2)
@@ -83,7 +76,6 @@ def gaussian_plume_estimate(source_coords: Tuple[float, float],
     return C
 
 def load_neighbor_coordinates():
-    """Load the predefined neighbor coordinates from the CSV file"""
     df = pd.read_csv("multi_zone_ring_layout_relative_coords.csv")
     neighbors = []
     for _, row in df.iterrows():
@@ -96,7 +88,6 @@ def load_neighbor_coordinates():
     return neighbors
 
 def main():
-    """Debug all input values to verify they are realistic"""
     center_lat = 40.7239
     center_lon = -74.3072
     
@@ -105,14 +96,12 @@ def main():
     print(f"📍 Location: ({center_lat}, {center_lon}) - New York City")
     print()
     
-    # 1. Current PM2.5
     print("1️⃣ CURRENT PM2.5:")
     current_pm25 = get_pm25(center_lat, center_lon)
     print(f"   Value: {current_pm25:.3f} μg/m³")
     print(f"   Realistic range: 0-500 μg/m³ ✅")
     print()
     
-    # 2. Wind Data
     print("2️⃣ WIND DATA:")
     wind_u10m, wind_v10m, wind_u50m, wind_v50m = get_wind_data(center_lat, center_lon)
     print(f"   U10m: {wind_u10m:.3f} m/s")
@@ -122,34 +111,31 @@ def main():
     print(f"   Realistic range: -50 to +50 m/s ✅")
     print()
     
-    # 3. Elevation
     print("3️⃣ ELEVATION:")
     elevation = get_elevation(center_lat, center_lon)
     print(f"   Value: {elevation:.1f} m")
     print(f"   Realistic range: -100 to 9000 m ✅")
     print()
     
-    # 4. NLCD
     print("4️⃣ NLCD (Land Cover):")
-    nlcd = 250  # This is the static value we're using
+    nlcd = 250  
     print(f"   Value: {nlcd}")
     print(f"   Note: This is artificially set to 250 (should be 1-95) ⚠️")
     print()
     
-    # 5. Plume Prediction - CORRECTED
     print("5️⃣ GAUSSIAN PLUME PREDICTION (CORRECTED):")
     neighbors = load_neighbor_coordinates()
     total_plume_impact = 0.0
     
     print(f"   Calculating plume impact from {len(neighbors)} neighbors:")
-    for i, neighbor in enumerate(neighbors[:3]):  # Show first 3 for brevity
+    for i, neighbor in enumerate(neighbors[:3]): 
         neighbor_lat = center_lat + neighbor['delta_lat']
         neighbor_lon = center_lon + neighbor['delta_lon']
         neighbor_pm25 = get_pm25(neighbor_lat, neighbor_lon)
         
         plume_impact = gaussian_plume_estimate(
-            (neighbor_lon, neighbor_lat),  # source (neighbor)
-            (center_lon, center_lat),      # target (center)
+            (neighbor_lon, neighbor_lat),  
+            (center_lon, center_lat),    
             (wind_u10m + wind_u50m) / 2, (wind_v10m + wind_v50m) / 2
         )
         
@@ -173,7 +159,6 @@ def main():
     print(f"   Realistic: 3km, 6km, 12km rings ✅")
     print()
     
-    # 7. Check one neighbor's data
     print("7️⃣ SAMPLE NEIGHBOR DATA:")
     if len(neighbors) > 0:
         neighbor = neighbors[0]
@@ -182,13 +167,11 @@ def main():
         print(f"   Neighbor 1 location: ({neighbor_lat:.4f}, {neighbor_lon:.4f})")
         print(f"   Distance from center: {neighbor['radius_km']} km")
         
-        # Get neighbor's PM2.5
         neighbor_pm25 = get_pm25(neighbor_lat, neighbor_lon)
         print(f"   Neighbor PM2.5: {neighbor_pm25:.3f} μg/m³")
         print(f"   Realistic: Should be similar to center ✅")
     print()
     
-    # 8. Scaling Parameters Check
     print("8️⃣ SCALING PARAMETERS:")
     scaling_params = {
         "current_pm25": {"mean": 15.0, "std": 20.0},

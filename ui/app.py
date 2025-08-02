@@ -10,10 +10,8 @@ import os
 from typing import Tuple, List, Dict
 from sklearn.preprocessing import StandardScaler
 
-# Add the parent directory to path to import from main2.py
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import the model class from main2.py
 from main2 import PlumeNetDeep
 
 app = Flask(__name__)
@@ -25,11 +23,9 @@ AIR_URL = "http://api.openweathermap.org/data/2.5/air_pollution"
 WEATHER_URL = "http://api.openweathermap.org/data/2.5/weather"
 ELEVATION_URL = "https://api.open-elevation.com/api/v1/lookup"
 
-# Global models cache
 models = None
 
 def load_models():
-    """Load the trained models for 1, 3, and 7 day predictions"""
     global models
     if models is not None:
         return models
@@ -47,7 +43,6 @@ def load_models():
     return models
 
 def load_neighbor_coordinates():
-    """Load the predefined neighbor coordinates from the CSV file"""
     df = pd.read_csv("multi_zone_ring_layout_relative_coords.csv")
     neighbors = []
     for _, row in df.iterrows():
@@ -60,7 +55,6 @@ def load_neighbor_coordinates():
     return neighbors
 
 def get_elevation(lat: float, lon: float) -> float:
-    """Get elevation for given coordinates using Open-Elevation API"""
     url = f"{ELEVATION_URL}?locations={lat},{lon}"
     response = requests.get(url)
     if response.status_code == 200:
@@ -70,7 +64,6 @@ def get_elevation(lat: float, lon: float) -> float:
         return 0.0
 
 def fetch_pm25_data(lat: float, lon: float) -> float:
-    """Get current PM2.5 for given coordinates using OpenWeatherMap API"""
     air_params = {'lat': lat, 'lon': lon, 'appid': API_KEY}
     air_resp = requests.get(AIR_URL, params=air_params)
     if air_resp.status_code == 200:
@@ -86,15 +79,13 @@ def get_wind_data(lat: float, lon: float) -> Tuple[float, float, float, float]:
     
     if weather_resp.status_code == 200:
         weather_data = weather_resp.json()
-        wind_speed = weather_data['wind']['speed']  # m/s
-        wind_direction = weather_data['wind']['deg']  # degrees
+        wind_speed = weather_data['wind']['speed'] 
+        wind_direction = weather_data['wind']['deg'] 
         
-        # Convert to U/V components
         wind_dir_rad = math.radians(wind_direction)
         u = -wind_speed * math.sin(wind_dir_rad)
         v = -wind_speed * math.cos(wind_dir_rad)
         
-        # Assume same values for 10m and 50m heights
         return u, v, u, v
     else:
         return 0.0, 0.0, 0.0, 0.0
@@ -103,7 +94,6 @@ def gaussian_plume_estimate(source_coords: Tuple[float, float],
                            point_coords: Tuple[float, float], 
                            u: float, v: float, 
                            Q=1000, H=10, sigma_y=50, sigma_z=20) -> float:
-    """Calculate Gaussian plume estimate"""
     dx = point_coords[0] - source_coords[0]
     dy = point_coords[1] - source_coords[1]
     
@@ -111,11 +101,11 @@ def gaussian_plume_estimate(source_coords: Tuple[float, float],
     wind_dir_x = u / wind_mag
     wind_dir_y = v / wind_mag
     
-    x = dx * wind_dir_x + dy * wind_dir_y  # downwind distance
-    y = -dx * wind_dir_y + dy * wind_dir_x  # crosswind
+    x = dx * wind_dir_x + dy * wind_dir_y  
+    y = -dx * wind_dir_y + dy * wind_dir_x 
     
     if x <= 0:
-        return 0.0  # upwind or no impact
+        return 0.0 
     
     exponent = -0.5 * (y / sigma_y) ** 2
     vertical = math.exp(-0.5 * (H / sigma_z) ** 2)
@@ -125,13 +115,12 @@ def gaussian_plume_estimate(source_coords: Tuple[float, float],
 
 def get_center_features(center_lat: float, center_lon: float) -> List[float]:
     """Get the 8 center features for the main location"""
-    # 1. Current PM2.5
+   
     current_pm25 = fetch_pm25_data(center_lat, center_lon)
     
-    # 2. Plume prediction - calculate impact of all neighbors on center point
+  
     wind_u10m, wind_v10m, wind_u50m, wind_v50m = get_wind_data(center_lat, center_lon)
     
-    # Load neighbor coordinates to calculate plume impact
     neighbors = load_neighbor_coordinates()
     total_plume_impact = 0.0
     
@@ -139,53 +128,44 @@ def get_center_features(center_lat: float, center_lon: float) -> List[float]:
         neighbor_lat = center_lat + neighbor['delta_lat']
         neighbor_lon = center_lon + neighbor['delta_lon']
         
-        # Get PM2.5 at neighbor location
         neighbor_pm25 = fetch_pm25_data(neighbor_lat, neighbor_lon)
         
-        # Calculate plume impact from this neighbor to center point
+       
         plume_impact = gaussian_plume_estimate(
             (neighbor_lon, neighbor_lat),  # source (neighbor)
             (center_lon, center_lat),      # target (center)
             (wind_u10m + wind_u50m) / 2, (wind_v10m + wind_v50m) / 2
         )
         
-        # Weight by neighbor's PM2.5 concentration
+       
         total_plume_impact += neighbor_pm25 * plume_impact
     
     plume_pred = total_plume_impact
     
-    # 7. Elevation
     elevation = get_elevation(center_lat, center_lon)
     
-    # 8. NLCD (static value as requested)
+   
     nlcd = 250
     
     return [current_pm25, plume_pred, wind_u10m, wind_v10m, wind_u50m, wind_v50m, elevation, nlcd]
 
 def get_neighbor_features(center_lat: float, center_lon: float, 
                          neighbor_delta_lat: float, neighbor_delta_lon: float) -> List[float]:
-    """Get the 10 context features for a neighbor location"""
-    # Calculate neighbor coordinates
+
     neighbor_lat = center_lat + neighbor_delta_lat
     neighbor_lon = center_lon + neighbor_delta_lon
     
-    # 1-2. Delta lat/lon (relative to center)
     delta_lat = neighbor_delta_lat
     delta_lon = neighbor_delta_lon
     
-    # 3-6. Wind U/V components
     wind_u10m, wind_v10m, wind_u50m, wind_v50m = get_wind_data(neighbor_lat, neighbor_lon)
     
-    # 7. Elevation
     elevation = get_elevation(neighbor_lat, neighbor_lon)
     
-    # 8. NLCD (static value)
     nlcd = 250
     
-    # 9. PM2.5 at neighbor location
     pm25 = fetch_pm25_data(neighbor_lat, neighbor_lon)
     
-    # 10. Plume prediction for neighbor
     plume = gaussian_plume_estimate(
         (center_lon, center_lat), (neighbor_lon, neighbor_lat),
         (wind_u10m + wind_u50m) / 2, (wind_v10m + wind_v50m) / 2
@@ -194,7 +174,6 @@ def get_neighbor_features(center_lat: float, center_lon: float,
     return [delta_lat, delta_lon, wind_u10m, wind_v10m, wind_u50m, wind_v50m, elevation, nlcd, pm25, plume]
 
 def get_pm25_danger_level(pm25_value: float) -> Dict:
-    """Get danger level and color for PM2.5 value"""
     if pm25_value <= 12.0:
         return {"level": "Good", "color": "green", "risk": "Low"}
     elif pm25_value <= 35.4:
@@ -209,17 +188,12 @@ def get_pm25_danger_level(pm25_value: float) -> Dict:
         return {"level": "Hazardous", "color": "maroon", "risk": "Extreme"}
 
 def predict_pm25(center_lat: float, center_lon: float) -> Dict:
-    """Make PM2.5 predictions for 1, 3, and 7 days"""
-    # Load models if not already loaded
     models = load_models()
     
-    # Load neighbor coordinates
     neighbors = load_neighbor_coordinates()
     
-    # Get center features
     center_features = get_center_features(center_lat, center_lon)
     
-    # Scale center features using reasonable scaling values
     scaling_params = {
         "current_pm25": {"mean": 15.0, "std": 20.0},
         "plume_pred": {"mean": 0.5, "std": 2.0},
@@ -240,7 +214,6 @@ def predict_pm25(center_lat: float, center_lon: float) -> Dict:
     
     center_tensor = torch.tensor([center_features_scaled], dtype=torch.float32)
     
-    # Get context features for all neighbors
     context_features = []
     for neighbor in neighbors:
         features = get_neighbor_features(
@@ -249,18 +222,15 @@ def predict_pm25(center_lat: float, center_lon: float) -> Dict:
         )
         context_features.append(features)
     
-    # Pad to max_neighbors=20 if needed
     max_neighbors = 20
     while len(context_features) < max_neighbors:
-        context_features.append([0.0] * 10)  # Zero padding
+        context_features.append([0.0] * 10) 
     
-    # Normalize context features (like in training)
     context_features_array = np.array(context_features, dtype=np.float32)
     context_features_normalized = (context_features_array - context_features_array.mean(axis=0)) / (context_features_array.std(axis=0) + 1e-6)
     
     context_tensor = torch.tensor([context_features_normalized], dtype=torch.float32)
     
-    # Make predictions for each horizon
     predictions = {}
     with torch.no_grad():
         for horizon, model in models.items():
@@ -275,10 +245,9 @@ def get_pm25():
     lat = request.args.get('lat', type=float)
     lon = request.args.get('lon', type=float)
     if lat is not None and lon is not None:
-        # Use provided coordinates
+     
         use_lat, use_lon = lat, lon
     elif zipcode:
-        # Step 1: Get coordinates from zipcode
         geo_params = {'zip': f'{zipcode},US', 'appid': API_KEY}
         geo_resp = requests.get(GEO_URL, params=geo_params)
         if geo_resp.status_code != 200:
@@ -290,7 +259,7 @@ def get_pm25():
             return jsonify({'error': 'Could not find coordinates for zipcode'}), 400
     else:
         return jsonify({'error': 'Missing zipcode or lat/lon'}), 400
-    # Step 2: Get PM2.5
+ 
     air_params = {'lat': use_lat, 'lon': use_lon, 'appid': API_KEY}
     air_resp = requests.get(AIR_URL, params=air_params)
     if air_resp.status_code != 200:
@@ -304,7 +273,6 @@ def get_pm25():
 
 @app.route('/predict', methods=['GET'])
 def predict():
-    """Get PM2.5 predictions for 1, 3, and 7 days"""
     lat = request.args.get('lat', type=float)
     lon = request.args.get('lon', type=float)
     
@@ -312,13 +280,10 @@ def predict():
         return jsonify({'error': 'Missing lat/lon parameters'}), 400
     
     try:
-        # Get current PM2.5
         current_pm25 = fetch_pm25_data(lat, lon)
         
-        # Get predictions
         predictions = predict_pm25(lat, lon)
         
-        # Format response with danger levels
         result = {
             'current': {
                 'value': round(current_pm25, 2),
