@@ -1,15 +1,8 @@
-# pm25_plume_forecast/visualization/map_plotter.py
-
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 
 def plot_maps(input_plume, pred_plume, gt_plume, region, date, output_dir="results/plots"):
-    """
-    Plot side-by-side maps of input plume, predicted plume, and ground truth plume.
-    Also plot danger maps (e.g., PM2.5 > threshold).
-    Saves plots to output_dir.
-    """
 
     os.makedirs(output_dir, exist_ok=True)
 

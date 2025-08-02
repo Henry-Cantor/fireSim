@@ -118,10 +118,10 @@ class PlumeCNNLSTM(nn.Module):
         )
 
     def forward(self, center_feats, context_feats):
-        cnn_input = context_feats.permute(0, 2, 1)  # (B, C, T)
+        cnn_input = context_feats.permute(0, 2, 1) 
         context_out = self.cnn(cnn_input).squeeze(-1)
 
-        lstm_input = center_feats.unsqueeze(1)  # (B, 1, F)
+        lstm_input = center_feats.unsqueeze(1)  
         _, (h_n, _) = self.lstm(lstm_input)
         lstm_out = h_n[-1]  # (B, H)
 

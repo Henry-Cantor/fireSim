@@ -11,10 +11,8 @@ import tempfile
 import shutil
 from collections import defaultdict
 
-# Manual cache for plume values
 PLUME_CACHE = {}
 
-# Gaussian plume estimate function
 def gaussian_plume_estimate(source_coords, point_coords, u, v, Q=1000, H=10, sigma_y=50, sigma_z=20):
     dx = point_coords[0] - source_coords[0]
     dy = point_coords[1] - source_coords[1]
@@ -36,12 +34,12 @@ DATA_PATH = "data/processed"
 OUTPUT_PATH = "data/processed/horizon_datasetsNEW"
 SPATIAL_RADIUS_KM = 50
 HORIZONS = [1, 3, 7]
-BATCH_SIZE = 60  # Number of dates processed before flushing to disk
+BATCH_SIZE = 60 
 
-MAX_SAMPLES_PER_REGION_PER_HORIZON = 10000  # max per region per horizon
-MAX_TOTAL_SAMPLES_PER_HORIZON = MAX_SAMPLES_PER_REGION_PER_HORIZON * 4  # 4 regions total
-MAX_SAMPLES_PER_REGION_PER_YEAR = 1600       # yearly quota per region
-MAX_SAMPLES_PER_REGION_PER_MONTH = 160       # monthly quota per region
+MAX_SAMPLES_PER_REGION_PER_HORIZON = 10000 
+MAX_TOTAL_SAMPLES_PER_HORIZON = MAX_SAMPLES_PER_REGION_PER_HORIZON * 4 
+MAX_SAMPLES_PER_REGION_PER_YEAR = 1600     
+MAX_SAMPLES_PER_REGION_PER_MONTH = 160     
 
 def parse_date(s):
     return datetime.strptime(s, "%Y_%m_%d")
@@ -92,7 +90,6 @@ def process_one_date(args):
     date, data_files = args
     import pandas as pd
 
-    # Load only required dataframes from disk
     today_df = pd.read_pickle(data_files["today"])
     horizons_df = {}
     for h in HORIZONS:
@@ -169,7 +166,7 @@ def process_one_date(args):
                 "elevation": row["elevation"],
                 "nlcd": row["nlcd"],
                 "context": context,
-                "region": row.get("region", None)  # Make sure region is present in sample
+                "region": row.get("region", None)  
             }
             partial_results[h].append(sample)
 
@@ -181,19 +178,16 @@ def process_one_date(args):
 def save_date_dfs_to_temp(date_to_df):
     temp_dir = tempfile.mkdtemp(prefix="date_dfs_")
     date_files = {}
-    for date, df in list(date_to_df.items()):  # list() to avoid "dictionary changed size" error
+    for date, df in list(date_to_df.items()): 
         path = os.path.join(temp_dir, f"{format_date(date)}.pkl")
         df.to_pickle(path)
         date_files[date] = path
-        del date_to_df[date]  # Delete the DataFrame from the dictionary to free memory
+        del date_to_df[date]  
     return temp_dir, date_files
 
 
 def prepare_date_data(date, date_files):
-    """
-    For given date, return (date, dict_of_paths) where dict_of_paths contains keys
-    'today' and horizon days with values as paths to pickle files.
-    """
+
     data = {"today": date_files[date]}
     for h in HORIZONS:
         future_date = date + timedelta(days=h)
@@ -203,11 +197,7 @@ def prepare_date_data(date, date_files):
 
 
 def limit_samples(datasets):
-    """
-    Limit datasets to max 1000 samples per region per horizon,
-    i.e. 4000 samples per horizon total.
-    Returns new limited datasets dict.
-    """
+ 
     limited = {h: [] for h in HORIZONS}
     counters = {h: defaultdict(int) for h in HORIZONS}
 
@@ -309,7 +299,6 @@ def build_datasets_parallel(df):
                         samples_per_region_month[h][region][ym_key] += 1
                         total_samples_accumulated += 1
 
-                # Flush condition
                 if total_samples_accumulated >= 250 or date == batch_dates[-1]:
                     print(f"Flushing batch at date {format_date(date)} with {total_samples_accumulated} samples...")
                     flush_to_csv(datasets, overwrite=(len(flushed_dates) == 0))
@@ -318,20 +307,17 @@ def build_datasets_parallel(df):
                     flushed_dates.add(date)
                     total_samples_accumulated = 0
 
-                    # REMOVE dates ≤ flush date from date_files & remaining_dates
                     dates_to_remove = [d for d in remaining_dates if d <= date]
                     for dtr in dates_to_remove:
-                        # Remove from date_files and remaining_dates
                         if dtr in date_files:
                             try:
-                                os.remove(date_files[dtr])  # delete temp pickle file to free disk space
+                                os.remove(date_files[dtr]) 
                             except FileNotFoundError:
                                 pass
                             del date_files[dtr]
                         if dtr in remaining_dates:
                             remaining_dates.remove(dtr)
-                    # After removal, break executor early to restart with new batch
-                    break  # break inner for loop, will restart while with new batch
+                    break  
 
     # Flush remaining samples after loop
     if any(len(datasets[h]) > 0 for h in HORIZONS):
@@ -368,7 +354,6 @@ def flush_to_csv(datasets, overwrite=False):
 
 
 def csv_to_pkl_conversion(csv_folder=OUTPUT_PATH):
-    """Utility to convert all CSV datasets in a folder to Pickle format."""
     for filename in os.listdir(csv_folder):
         if filename.endswith(".csv") and filename.startswith("dataset_h"):
             csv_path = os.path.join(csv_folder, filename)

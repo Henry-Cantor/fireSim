@@ -3,22 +3,7 @@ import numpy as np
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 def evaluate_model(model, input_seq, target_multi, region, horizons=None):
-    """
-    Evaluate the model on a single input sequence with multi-horizon targets.
 
-    Args:
-        model: trained model
-        input_seq: tensor [seq_len, feature_dim]
-        target_multi: tensor [num_horizons] - ground truth PM2.5 for multiple horizons
-        region: str, region name (for logging/plotting)
-        horizons: list of ints, forecast horizons in days (optional)
-
-    Returns:
-        input_plume: input features numpy array (for plotting)
-        preds: model predictions numpy array [num_horizons]
-        gt: ground truth numpy array [num_horizons]
-        metrics: dict with mse and mae per horizon and averages
-    """
     model.eval()
     with torch.no_grad():
         # Add batch dimension

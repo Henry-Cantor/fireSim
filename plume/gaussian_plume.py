@@ -129,11 +129,7 @@ def read_tiff(tiff_path):
 
 
 def read_wind_data(wind_dir, valid_dates=None):
-    """
-    Read and concatenate all wind CSV files in wind_dir.
-    Filter rows by valid_dates (set of datetime.date objects) if provided.
-    Assumes each CSV has a 'date' column in YYYY-MM-DD format.
-    """
+
     all_dfs = []
     for f in os.listdir(wind_dir):
         if f.endswith(".csv"):
@@ -176,15 +172,10 @@ def simulate_plume(pm25_csv_path,
         if 0 <= row < grid.shape[0] and 0 <= col < grid.shape[1]:
             grid[row, col] += val
 
-    # Use a combined wind speed and direction for anisotropic Gaussian blur
-    # Simple approach: average speeds and directions weighted equally
     avg_speed = (wind_10m_speed + wind_50m_speed) / 2
-    # Average directions need care; average in vector form to avoid angle wrap
     u = (wind_10m_speed * np.cos(np.radians(wind_10m_dir)) + wind_50m_speed * np.cos(np.radians(wind_50m_dir))) / 2
     v = (wind_10m_speed * np.sin(np.radians(wind_10m_dir)) + wind_50m_speed * np.sin(np.radians(wind_50m_dir))) / 2
-    avg_dir_rad = np.arctan2(v, u)  # radians
-
-    # Compute anisotropic sigmas for Gaussian blur based on combined wind
+    avg_dir_rad = np.arctan2(v, u) 
     sigma_x = 3 + 10 * np.abs(np.cos(avg_dir_rad)) * (10 / avg_speed)
     sigma_y = 3 + 10 * np.abs(np.sin(avg_dir_rad)) * (10 / avg_speed)
 
@@ -200,11 +191,11 @@ def gaussian_plume_estimate(source_coords, point_coords, u, v, Q=1000, H=10, sig
     wind_dir_x = u / wind_mag
     wind_dir_y = v / wind_mag
 
-    x = dx * wind_dir_x + dy * wind_dir_y  # downwind distance
-    y = -dx * wind_dir_y + dy * wind_dir_x  # crosswind
+    x = dx * wind_dir_x + dy * wind_dir_y 
+    y = -dx * wind_dir_y + dy * wind_dir_x 
 
     if x <= 0:
-        return 0.0  # upwind or no impact
+        return 0.0  
 
     exponent = -0.5 * (y / sigma_y) ** 2
     vertical = np.exp(-0.5 * (H / sigma_z) ** 2)
@@ -225,12 +216,10 @@ def load_dataset_csv(path, source_coords=(-100.0, 38.0)):
             features = np.array([float(x) for x in row[:-1]], dtype=np.float32)
             target = float(row[-1])
 
-            # Expect wind_u10m and wind_v10m at indices 4, 5; lat/lon at 0, 1
             lat, lon = features[0], features[1]
             u, v = features[4], features[5]
 
             plume = gaussian_plume_estimate(source_coords, (lon, lat), u, v)
-            # Add plume value as an extra feature
             extended_features = np.append(features, plume)
 
             samples.append((extended_features, target))

@@ -6,7 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from scipy.interpolate import griddata
 from scipy.spatial import Delaunay
 
-from main2 import PlumeNetDeep  # Your model class
+from main2 import PlumeNetDeep  
 
 device = torch.device("cpu")
 
@@ -119,7 +119,7 @@ vmin = np.nanmin(combined_vals)
 vmax = np.nanmax(combined_vals)
 
 # --- Plot heatmaps ---
-cmap = plt.cm.inferno.reversed()  # lighter = lower PM2.5
+cmap = plt.cm.inferno.reversed()  
 
 for i, day in enumerate([0, 1, 3, 7]):
     plt.figure(figsize=(8, 6))
