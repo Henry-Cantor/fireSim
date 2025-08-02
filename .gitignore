@@ -1,0 +1,5 @@
+# Ignore system and IDE files
+.DS_Store
+.vscode/
+__pycache__/
+*.pyc
